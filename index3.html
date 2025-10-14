@@ -16,7 +16,7 @@
             --card-bg: #1e1e29;
             --text-color: #ffffff;
             --text-secondary: #a0a0b0;
-            --header-height: 70px;
+            --header-height: 340px;
             --player-aspect: 9/16;
             --transition: all 0.3s ease;
         }
@@ -63,16 +63,16 @@
 
         .player-section {
             flex: 1;
-            padding: 30px;
+            padding: 0;
             display: flex;
             flex-direction: column;
-            max-width: 70%;
+            max-width: 100%;
         }
 
         .video-container {
             position: relative;
             width: 100%;
-            height: 0;
+            height: 270px;
             padding-bottom: 56.25%;
             background: #000;
             border-radius: 12px;
@@ -175,8 +175,8 @@
         }
 
         .nav-btn {
-            width: 40px;
-            height: 40px;
+            width: 80px;
+            height: 240px;
             background: var(--primary-gradient);
             color: white;
             border: none;
@@ -347,8 +347,8 @@
         /* UPDATED CHANNEL LIST STYLES */
         .channel-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 5fr));
+            gap: 35px;
             padding: 10px 0;
         }
 
@@ -498,7 +498,7 @@
                 top: 0;
                 z-index: 100;
                 background: var(--dark-bg);
-                padding-bottom: 10px;
+                padding-bottom: 5px;
             }
             
             .channels-sidebar {
@@ -615,7 +615,7 @@
             }
             
             .video-container {
-                border-radius: 8px;
+                border-radius: 0px;
             }
             
             .quality-select, .source-select {
