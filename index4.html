@@ -1714,14 +1714,14 @@
             } 
             else if (video.canPlayType("application/vnd.apple.mpegurl")) {
                 video.src = source.url;
+                video.addEventListener("loadedmetadata", function() {
                 video.play().catch(e => {
-                    showError("Please click play to start.");
+                    console.error("Failed to autoplay:", e);
                     loadingOverlay.style.display = "none";
                 });
             } 
             else {
                 showError("Your browser doesn't support HLS playback.");
-                loadingOverlay.style.display = "none";
             }
         }
 
