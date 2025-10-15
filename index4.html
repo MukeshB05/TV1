@@ -1685,7 +1685,7 @@
                     setupQualityLevels();
                     
                     video.play().catch(e => {
-                        showError("Autoplay blocked. Please click play to start.");
+                        console.error("Failed to autoplay:", e);
                         loadingOverlay.style.display = "none";
                     });
                 });
