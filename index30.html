@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Streaming Platform</title>
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    font-family: Arial, sans-serif;
+    color: #fff;
+  }
+  /* Dark mode styles */
+  body.dark-mode {
+    background-color: #fff;
+    color: #000;
+  }
+
+  /* Player container */
+  #player-container {
+    position: relative;
+    max-width: 100%;
+    height: 60vh;
+    background: black;
+  }
+
+  /* Video styling */
+  #video, #adVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Controls styling */
+  #controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(0,0,0,0.6);
+  }
+
+  .control-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px 10px;
+  }
+  .control-btn:hover {
+    color: #0ff;
+  }
+
+  /* Progress Bar Container */
+  #progress-container {
+    width: 100%;
+    height: 5px;
+    background: #444;
+    cursor: pointer;
+  }
+
+  /* Progress bar fill */
+  #progress {
+    height: 100%;
+    background: #0ff;
+    width: 0;
+  }
+
+  /* Ad overlay styles */
+  #adOverlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+
+  #adVideo {
+    max-width: 80%;
+    max-height: 60%;
+  }
+
+  #adProgressContainer {
+    width: 80%;
+    height: 5px;
+    background: #444;
+    margin-top: 10px;
+  }
+
+  #adProgress {
+    height: 100%;
+    background: #0ff;
+    width: 0;
+  }
+
+  #skipAdBtn {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background: #0ff;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  /* Extra controls styles */
+  #extraControls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  /* Slider styles */
+  input[type=range] {
+    cursor: pointer;
+  }
+
+  /* Time display */
+  #timeDisplay {
+    margin-left: auto;
+    font-size: 12px;
+  }
+
+  /* Responsive adjustments */
+  @media(max-width: 768px) {
+    #player-container {
+      height: 40vh;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="player-container">
+  <video id="video" controls></video>
+  <div id="adOverlay">
+    <video id="adVideo" muted></video>
+    <div id="adProgressContainer"><div id="adProgress"></div></div>
+    <button id="skipAdBtn" disabled>Skip Ad</button>
+  </div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <!-- Main controls -->
+  <button class="control-btn" id="playPauseBtn" title="Play/Pause"><i class="fas fa-play"></i></button>
+  <button class="control-btn" id="muteBtn" title="Mute/Unmute"><i class="fas fa-volume-up"></i></button>
+  <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" title="Volume"/>
+  <button class="control-btn" id="pipBtn" title="Picture-in-Picture"><i class="fas fa-tv"></i></button>
+  <button class="control-btn" id="fullscreenBtn" title="Fullscreen"><i class="fas fa-expand"></i></button>
+  <button class="control-btn" id="bookmarkBtn" title="Add to Favorites"><i class="fas fa-star"></i></button>
+  <button class="control-btn" id="darkModeBtn" title="Dark Mode"><i class="fas fa-moon"></i></button>
+  <button class="control-btn" id="shareBtn" title="Share"><i class="fas fa-share-alt"></i></button>
+  <!-- Progress bar -->
+  <div id="progress-container" style="flex:1; margin:0 10px;">
+    <div id="progress"></div>
+  </div>
+  <!-- Extra controls -->
+  <div id="extraControls">
+    <label style="color:white;">Quality:</label>
+    <select id="qualityMenu"></select>
+    <label style="color:white;">Brightness</label>
+    <input type="range" min="50" max="150" value="100" id="brightnessRange" title="Brightness"/>
+    <label style="color:white;">Contrast</label>
+    <input type="range" min="50" max="150" value="100" id="contrastRange" title="Contrast"/>
+    <button class="control-btn" id="toggleFiltersBtn" title="Toggle Filters"><i class="fas fa-adjust"></i></button>
+  </div>
+  <div id="timeDisplay">00:00 / 00:00</div>
+</div>
+
+<!-- Additional features -->
+<div id="additionalFeatures" style="padding:10px; display:flex; gap:10px; flex-wrap:wrap;">
+  <button class="control-btn" id="autoPlayNextBtn" title="Auto Play Next Channel"><i class="fas fa-forward"></i></button>
+  <button class="control-btn" id="favoriteListBtn" title="View Favorites"><i class="fas fa-list"></i></button>
+  <button class="control-btn" id="toggleDarkModeBtn" title="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
+</div>
+
+<!-- Quality label -->
+<div style="padding:10px; color:white;">
+  Current Quality: <span id="currentQualityLabel">Auto</span>
+</div>
+
+<script>
+  // Sample channel data
+const channels = [
+  { 
+                name: "Oxygen Music", 
+                sources: [
+                    { name: "Playlist", url: "https://segment.yuppcdn.net/050522/reporter/playlist.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/8z1kS0G5/Oxygen-Music.jpg", 
+                category: "Channels",
+                description: "Asia"
+            },
+            { 
+                name: "Bengali Beats", 
+                sources: [
+                    { name: "Playlist", url: "https://play.applelive.in/jjmax/jjmax.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/jSLNzXgM/Bengali-Beats.png", 
+                category: "Channels",
+                description: "Asia"
+            },
+            { 
+                name: "Om Bangla", 
+                sources: [
+                    { name: "Playlist", url: "https://rtmp.bmlive.net/bms/visiontv/index.m3u8" }
+                ],
+                img: "https://i.postimg.cc/jjmyWm0m/om-bangla-2.jpg", 
+                category: "Channels",
+                description: "Asia"
+            },
+            { 
+                name: "Ilm TV", 
+                sources: [
+                    { name: "Server 1", url: "https://n18syndication.akamaized.net/bpk-tv/News18_Bangla_NW18_MOB/output01/index.m3u8" }
+                ],
+                img: "https://i.postimg.cc/tTkx4MWv/ilm.jpg", 
+                category: "Channels",
+                description: "Asia"
+            },
+            { 
+                name: "24/7 Motu Patlu", 
+                sources: [
+                    { name: "Playlist", url: "https://segment.yuppcdn.net/240122/manoramanews/playlist.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/sgxQd9gz/motu-patlu.jpg", 
+                category: "Kids",
+                description: "Hindi"
+            },
+            { 
+                name: "24/7 Ninja Hattori", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/kids/ninja-hattori/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/Kz0h2LzX/ninja-hattori.jpg", 
+                category: "Kids",
+                description: "Hindi"
+            },
+            { 
+                name: "24/7 Doraemon", 
+                sources: [
+                    { name: "Playlist", url: "https://segment.yuppcdn.net/140622/janamtvdev/playlist.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/7hrsjZ1v/doraemon.jpg", 
+                category: "Kids",
+                description: "Hindi"
+            },
+            { 
+                name: "24/7 Oggy and the Cockroaches", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/kids/oggy-and-the-cockroaches/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/25T1j5cX/oggy2.jpg", 
+                category: "Kids",
+                description: "Hindi"
+            },
+            { 
+                name: "24/7 Gopal Bhar", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/kids/gopal-bhar/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/Pxj1jp7M/gopal-bhar.jpg", 
+                category: "Kids",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 Bantul The Great", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/kids/bantul-the-great/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/X7pGtkJb/bantul.jpg", 
+                category: "Kids",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 Crime Patrol Bengali", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/mix/crime-patrol-bengali.index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/FFSwCT9W/crime-patrol.jpg", 
+                category: "Entertainment",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 CID Bengali", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/mix/cid-bengali.index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/nz4WS5nT/cid-bengali.jpg", 
+                category: "Entertainment",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 Humayun Ahmed", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/mix/humayun-ahmed/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/mZ7yRY36/ha24-7.jpg", 
+                category: "Entertainment",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 Bangla Movies", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/movies/bangla-movies/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/7YR2vbGk/bm.jpg", 
+                category: "Movie",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 Bollywood Movies", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/movies/bollywood-movies/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/HsvPf09Y/bollywood.jpg", 
+                category: "Movie",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 Dubbed Movies", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/movies/dubbed-movies/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/DZmhKfbK/dubbed.jpg", 
+                category: "Movie",
+                description: "Bengali"
+            },
+            { 
+                name: "24/7 T Play Special", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/music/tplay-special/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/Jzqh6SSX/tplay.jpg", 
+                category: "Music",
+                description: "India"
+            },
+            { 
+                name: "24/7 Coke Studio Bangla", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/music/coke-studio-bangla/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/jj5QHB7R/csb.jpg", 
+                category: "Music",
+                description: "Bangladesh"
+            },
+            { 
+                name: "24/7 Wind of Change", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/music/wind-of-change/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/HnyQPzkF/wind-of-change.jpg", 
+                category: "Music",
+                description: "Bangladesh"
+            },
+            { 
+                name: "24/7 Dance Performance", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/music/dance-performance/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/QMQsqnGY/dance.jpg", 
+                category: "Music",
+                description: "India"
+            },
+            { 
+                name: "24/7 Bhojpuri Songs", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/music/bhojpuri/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/mk6mMRdL/bhojpuri.jpg", 
+                category: "Music",
+                description: "India"
+            },
+            { 
+                name: "24/7 Adnan Sami", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/music/adnan-sami/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/SxVJGs6X/adnan-sami.jpg", 
+                category: "Music",
+                description: "India"
+            },
+            { 
+                name: "24/7 Bangla Kirtan", 
+                sources: [
+                    { name: "Playlist", url: "https://tplay.live/playlist/mix/bangla-kirtan/index.m3u8" }
+                ], 
+                img: "https://i.postimg.cc/QMtrZNRk/bangla-kirtan.jpg", 
+                category: "Religious",
+                description: "Bengali"
+            }
+  // Add more channels as needed
+];
+
+const adVideos = [
+  "https://www.w3schools.com/html/mov_bbb.mp4", // sample ad video
+  "https://www.w3schools.com/html/movie.mp4",
+  // Add more ad videos
+];
+
+let currentChannelIndex = 0;
+let isPlaying = false;
+let isMuted = false;
+let isAdPlaying = false;
+let adInterval;
+let adTimer;
+let adProgressInterval;
+let adDuration = 30; // default, will be set dynamically
+let adShownCount = 0;
+
+const video = document.getElementById("video");
+const adVideo = document.getElementById("adVideo");
+const adOverlay = document.getElementById("adOverlay");
+const adProgress = document.getElementById("adProgress");
+const skipAdBtn = document.getElementById("skipAdBtn");
+
+const playPauseBtn = document.getElementById("playPauseBtn");
+const muteBtn = document.getElementById("muteBtn");
+const volumeSlider = document.getElementById("volumeSlider");
+const pipBtn = document.getElementById("pipBtn");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
+const bookmarkBtn = document.getElementById("bookmarkBtn");
+const darkModeBtn = document.getElementById("darkModeBtn");
+const shareBtn = document.getElementById("shareBtn");
+const progressContainer = document.getElementById("progress-container");
+const progress = document.getElementById("progress");
+const qualityMenu = document.getElementById("qualityMenu");
+const currentQualityLabel = document.getElementById("currentQualityLabel");
+const brightnessRange = document.getElementById("brightnessRange");
+const contrastRange = document.getElementById("contrastRange");
+const toggleFiltersBtn = document.getElementById("toggleFiltersBtn");
+const timeDisplay = document.getElementById("timeDisplay");
+const autoPlayNextBtn = document.getElementById("autoPlayNextBtn");
+const favoriteListBtn = document.getElementById("favoriteListBtn");
+const toggleDarkModeBtn = document.getElementById("toggleDarkModeBtn");
+
+// Initialize
+function init() {
+  loadFavorites();
+  populateQualityMenu();
+  loadChannel(currentChannelIndex);
+  setEventListeners();
+  updateTimeDisplay();
+  startProgressUpdate();
+}
+
+function loadChannel(index) {
+  if (channels.length === 0) return;
+  currentChannelIndex = index;
+  video.src = channels[index].url;
+  video.load();
+  video.play().then(() => {
+    isPlaying = true;
+    updatePlayPauseIcon();
+  }).catch(() => {
+    // autoplay policy fallback
+    isPlaying = false;
+    updatePlayPauseIcon();
+  });
+}
+
+function setEventListeners() {
+  // Play/Pause toggle
+  playPauseBtn.addEventListener("click", togglePlayPause);
+  video.addEventListener("click", togglePlayPause);
+  video.addEventListener("play", () => { isPlaying = true; updatePlayPauseIcon(); });
+  video.addEventListener("pause", () => { isPlaying = false; updatePlayPauseIcon(); });
+  // Mute toggle
+  muteBtn.addEventListener("click", toggleMute);
+  volumeSlider.addEventListener("input", () => {
+    video.volume = parseFloat(volumeSlider.value);
+    if (video.volume === 0) {
+      video.muted = true;
+      isMuted = true;
+      muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+    } else {
+      video.muted = false;
+      isMuted = false;
+      muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    }
+  });
+  // Progress seek
+  progressContainer.addEventListener("click", seekVideo);
+  // Video time update
+  video.addEventListener("timeupdate", updateTimeDisplay);
+  // Video ended
+  video.addEventListener("ended", () => {
+    if (autoPlayNextBtn.dataset.enabled === "true") {
+      nextChannel();
+    }
+  });
+  // Picture-in-Picture
+  pipBtn.addEventListener("click", togglePiP);
+  // Fullscreen
+  fullscreenBtn.addEventListener("click", toggleFullscreen);
+  // Bookmark
+  bookmarkBtn.addEventListener("click", toggleFavorite);
+  // Dark Mode
+  darkModeBtn.addEventListener("click", toggleDarkMode);
+  toggleDarkModeBtn.addEventListener("click", toggleDarkMode);
+  // Share
+  shareBtn.addEventListener("click", shareChannel);
+  // Quality Menu
+  qualityMenu.addEventListener("change", changeQuality);
+  // Filters
+  toggleFiltersBtn.addEventListener("click", toggleFilters);
+  brightnessRange.addEventListener("input", updateVideoFilters);
+  contrastRange.addEventListener("input", updateVideoFilters);
+  // Additional features
+  autoPlayNextBtn.addEventListener("click", () => {
+    const enabled = autoPlayNextBtn.dataset.enabled === "true";
+    autoPlayNextBtn.dataset.enabled = (!enabled).toString();
+    autoPlayNextBtn.innerHTML = enabled ? '<i class="fas fa-forward"></i>' : '<i class="fas fa-forward"></i> Auto Off';
+  });
+  favoriteListBtn.addEventListener("click", showFavorites);
+  // Skip ad
+  document.getElementById("skipAdBtn").addEventListener("click", finishAd);
+}
+
+// Play/Pause toggle
+function togglePlayPause() {
+  if (isAdPlaying) return; // Do nothing during ads
+  if (video.paused) {
+    video.play();
+  } else {
+    video.pause();
+  }
+}
+function updatePlayPauseIcon() {
+  playPauseBtn.innerHTML = video.paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+}
+
+// Mute toggle
+function toggleMute() {
+  video.muted = !video.muted;
+  if (video.muted || video.volume === 0) {
+    muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+  } else {
+    muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+  }
+}
+
+// Seek video
+function seekVideo(e) {
+  const rect = progressContainer.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const width = rect.width;
+  const percent = clickX / width;
+  video.currentTime = percent * video.duration;
+}
+
+// Update progress bar
+function startProgressUpdate() {
+  setInterval(() => {
+    if (!video.paused && !isAdPlaying) {
+      const percent = (video.currentTime / video.duration) * 100;
+      progress.style.width = percent + "%";
+    }
+  }, 500);
+}
+
+// Update time display
+function updateTimeDisplay() {
+  const current = formatTime(video.currentTime);
+  const total = formatTime(video.duration);
+  timeDisplay.textContent = `${current} / ${total}`;
+}
+function formatTime(seconds) {
+  if (isNaN(seconds)) return "00:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// Load specific channel
+function loadChannel(index) {
+  if (channels.length === 0) return;
+  currentChannelIndex = index;
+  video.src = channels[index].url;
+  video.load();
+  video.play().then(() => {
+    isPlaying = true;
+    updatePlayPauseIcon();
+  }).catch(() => {
+    isPlaying = false;
+    updatePlayPauseIcon();
+  });
+}
+
+// Next channel
+function nextChannel() {
+  currentChannelIndex = (currentChannelIndex + 1) % channels.length;
+  loadChannel(currentChannelIndex);
+}
+
+// Previous channel
+function prevChannel() {
+  currentChannelIndex = (currentChannelIndex - 1 + channels.length) % channels.length;
+  loadChannel(currentChannelIndex);
+}
+
+// Populate quality menu
+function populateQualityMenu() {
+  if (!video) return;
+  qualityMenu.innerHTML = "";
+  const autoOption = document.createElement("option");
+  autoOption.value = -1;
+  autoOption.textContent = "Auto";
+  qualityMenu.appendChild(autoOption);
+  // Add more quality options if available
+  // For simplicity, static options
+  const qualities = [240, 360, 480, 720, 1080];
+  qualities.forEach(q => {
+    const option = document.createElement("option");
+    option.value = q;
+    option.textContent = q + "p";
+    qualityMenu.appendChild(option);
+  });
+  qualityMenu.value = -1;
+  currentQualityLabel.textContent = "Auto";
+}
+
+// Change quality
+function changeQuality() {
+  const value = parseInt(qualityMenu.value);
+  if (value === -1) {
+    // Auto
+    currentQualityLabel.textContent = "Auto";
+    // Implement auto quality logic if using HLS
+  } else {
+    currentQualityLabel.textContent = value + "p";
+    // Implement quality change if supported
+  }
+}
+
+// Toggle filters
+let filtersEnabled = false;
+function toggleFilters() {
+  filtersEnabled = !filtersEnabled;
+  if (filtersEnabled) {
+    updateVideoFilters();
+  } else {
+    video.style.filter = "none";
+  }
+}
+function updateVideoFilters() {
+  const brightness = brightnessRange.value;
+  const contrast = contrastRange.value;
+  if (filtersEnabled) {
+    video.style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+  }
+}
+
+// Toggle fullscreen
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    video.requestFullscreen().catch(console.log);
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// Toggle PiP
+async function togglePiP() {
+  if (document.pictureInPictureElement) {
+    await document.exitPictureInPicture();
+  } else {
+    try {
+      await video.requestPictureInPicture();
+    } catch (err) {
+      alert("PiP not supported");
+    }
+  }
+}
+
+// Add current channel to favorites
+function toggleFavorite() {
+  let favs = JSON.parse(localStorage.getItem('favorites') || '[]');
+  const channelId = channels[currentChannelIndex].name;
+  if (favs.includes(channelId)) {
+    favs = favs.filter(c => c !== channelId);
+    alert("Removed from favorites");
+  } else {
+    favs.push(channelId);
+    alert("Added to favorites");
+  }
+  localStorage.setItem('favorites', JSON.stringify(favs));
+}
+
+// Load favorites list
+function loadFavorites() {
+  // For now, do nothing - can implement later
+}
+
+// Show favorites list
+function showFavorites() {
+  const favs = JSON.parse(localStorage.getItem('favorites') || '[]');
+  alert("Favorites:\n" + favs.join("\n"));
+}
+
+// Share channel
+function shareChannel() {
+  const channelName = channels[currentChannelIndex].name;
+  const url = window.location.href;
+  const shareText = `Watch ${channelName} on T Play! ${url}`;
+  if (navigator.share) {
+    navigator.share({ title: 'T Play', text: shareText }).catch(console.error);
+  } else {
+    prompt('Copy this link:', url);
+  }
+}
+
+// Toggle Dark Mode
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+}
+
+// Show ad
+function showAd() {
+  if (isAdPlaying) return;
+  isAdPlaying = true;
+  video.pause();
+  adOverlay.style.display = "flex";
+
+  const randomAdIndex = Math.floor(Math.random() * adVideos.length);
+  adVideo.src = adVideos[randomAdIndex];
+  adVideo.load();
+  adVideo.play().catch(e => {
+    console.error("Ad playback error:", e);
+    finishAd();
+  });
+
+  // Reset skip button
+  skipAdBtn.disabled = true;
+  let skipTime = 8;
+  skipAdBtn.textContent = `Skip Ad (${skipTime}s)`;
+  if (adTimer) clearInterval(adTimer);
+  adTimer = setInterval(() => {
+    skipTime--;
+    if (skipTime > 0) {
+      skipAdBtn.textContent = `Skip Ad (${skipTime}s)`;
+    } else {
+      clearInterval(adTimer);
+      skipAdBtn.textContent = "Skip Ad";
+      skipAdBtn.disabled = false;
+    }
+  }, 1000);
+
+  // Set ad duration dynamically
+  adVideo.addEventListener('loadedmetadata', () => {
+    adDuration = adVideo.duration;
+    startAdProgress();
+  });
+
+  // When ad ends
+  adVideo.addEventListener("ended", finishAd);
+}
+
+// Finish ad
+function finishAd() {
+  isAdPlaying = false;
+  adOverlay.style.display = "none";
+  // Resume main video
+  video.play();
+  // Schedule next ad
+  scheduleNextAd();
+}
+
+// Schedule next ad after random interval
+function scheduleNextAd() {
+  const intervalSeconds = Math.floor(Math.random() * 3) + 5; // 5-7 seconds
+  clearTimeout(adInterval);
+  adInterval = setTimeout(() => {
+    showAd();
+  }, intervalSeconds * 1000);
+}
+
+// Start ad progress bar
+function startAdProgress() {
+  if (adProgressInterval) clearInterval(adProgressInterval);
+  adProgress.style.width = "0%";
+  adProgressInterval = setInterval(() => {
+    let elapsed = adVideo.currentTime;
+    const percent = Math.min((elapsed / adVideo.duration) * 100, 100);
+    adProgress.style.width = percent + "%";
+  }, 100);
+}
+
+// Toggle filters visibility
+let filtersActive = false;
+function toggleFilters() {
+  filtersActive = !filtersActive;
+  if (!filtersActive) {
+    video.style.filter = "none";
+  } else {
+    updateVideoFilters();
+  }
+}
+
+// Initialize app
+init();
+
+// Optional: start first ad after some time
+// scheduleNextAd();
+</script>
+</body>
+</html>
